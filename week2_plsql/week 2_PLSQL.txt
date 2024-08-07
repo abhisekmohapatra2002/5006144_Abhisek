@@ -1,0 +1,690 @@
+Exercise 1: Control Structures
+
+Scenario 1: 
+Ans:
+DECLARE
+    CURSOR customer_cursor IS
+        SELECT c.CustomerID, l.LoanID, l.InterestRate
+        FROM Customers c
+        JOIN Loans l ON c.CustomerID = l.CustomerID
+        WHERE TRUNC(MONTHS_BETWEEN(SYSDATE, c.DOB) / 12) > 60;
+BEGIN
+    FOR customer_record IN customer_cursor LOOP
+        UPDATE Loans
+        SET InterestRate = InterestRate - 0.01
+        WHERE LoanID = customer_record.LoanID;
+
+        DBMS_OUTPUT.PUT_LINE('Applied 1% discount to LoanID: ' || customer_record.LoanID);
+    END LOOP;
+    
+    COMMIT;
+END;
+Scenario 2:
+Ans:
+BEGIN
+    FOR customer_record IN (
+        SELECT CustomerID
+        FROM Customers
+        WHERE Balance > 10000
+    ) LOOP
+        UPDATE Customers
+        SET IsVIP = TRUE
+        WHERE CustomerID = customer_record.CustomerID;
+
+        DBMS_OUTPUT.PUT_LINE('CustomerID ' || customer_record.CustomerID || ' promoted to VIP status.');
+    END LOOP;
+    
+    COMMIT;
+END;
+Scenario 3: 
+Ans:
+BEGIN
+    FOR loan_record IN (
+        SELECT c.CustomerID, c.Name, l.LoanID, l.EndDate
+        FROM Customers c
+        JOIN Loans l ON c.CustomerID = l.CustomerID
+        WHERE l.EndDate BETWEEN SYSDATE AND SYSDATE + 30
+    ) LOOP
+        DBMS_OUTPUT.PUT_LINE('Reminder: LoanID ' || loan_record.LoanID || ' for Customer ' || loan_record.Name || ' is due on ' || TO_CHAR(loan_record.EndDate, 'DD-MON-YYYY') || '.');
+    END LOOP;
+END;
+
+
+Exercise 2: Error Handling
+
+Scenario 1:
+Ans:
+CREATE OR REPLACE PROCEDURE SafeTransferFunds (
+    p_FromAccountID NUMBER,
+    p_ToAccountID NUMBER,
+    p_Amount NUMBER
+) AS
+    v_FromBalance NUMBER;
+BEGIN
+    SELECT Balance INTO v_FromBalance
+    FROM Accounts
+    WHERE AccountID = p_FromAccountID;
+
+    IF v_FromBalance < p_Amount THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Insufficient funds in the source account.');
+    END IF;
+
+    UPDATE Accounts
+    SET Balance = Balance - p_Amount
+    WHERE AccountID = p_FromAccountID;
+
+    UPDATE Accounts
+    SET Balance = Balance + p_Amount
+    WHERE AccountID = p_ToAccountID;
+
+    COMMIT;
+
+    DBMS_OUTPUT.PUT_LINE('Funds transferred successfully.');
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Error during fund transfer: ' || SQLERRM);
+END SafeTransferFunds;
+
+Scenario 2:
+Ans:
+CREATE OR REPLACE PROCEDURE UpdateSalary (
+    p_EmployeeID NUMBER,
+    p_Percentage NUMBER
+) AS
+BEGIN
+    UPDATE Employees
+    SET Salary = Salary + (Salary * p_Percentage / 100)
+    WHERE EmployeeID = p_EmployeeID;
+
+    IF SQL%ROWCOUNT = 0 THEN
+        RAISE_APPLICATION_ERROR(-20002, 'Employee ID does not exist.');
+    END IF;
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('Salary updated successfully for Employee ID: ' || p_EmployeeID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Error updating salary: ' || SQLERRM);
+END UpdateSalary;
+
+Scenario 3:
+Ans:
+CREATE OR REPLACE PROCEDURE AddNewCustomer (
+    p_CustomerID NUMBER,
+    p_Name VARCHAR2,
+    p_DOB DATE,
+    p_Balance NUMBER
+) AS
+BEGIN
+    INSERT INTO Customers (CustomerID, Name, DOB, Balance, LastModified)
+    VALUES (p_CustomerID, p_Name, p_DOB, p_Balance, SYSDATE);
+
+    COMMIT;
+    DBMS_OUTPUT.PUT_LINE('New customer added successfully.');
+EXCEPTION
+    WHEN DUP_VAL_ON_INDEX THEN
+        DBMS_OUTPUT.PUT_LINE('Error: Customer with ID ' || p_CustomerID || ' already exists.');
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error adding new customer: ' || SQLERRM);
+END AddNewCustomer;
+
+
+Exercise 3: Stored Procedures
+
+Scenario 1:
+Ans:
+CREATE OR REPLACE PROCEDURE ProcessMonthlyInterest AS
+BEGIN
+    FOR account_record IN (
+        SELECT AccountID, Balance
+        FROM Accounts
+        WHERE AccountType = 'Savings'
+    ) LOOP
+        UPDATE Accounts
+        SET Balance = Balance + (Balance * 0.01)
+        WHERE AccountID = account_record.AccountID;
+
+        DBMS_OUTPUT.PUT_LINE('Interest processed for Account ID: ' || account_record.AccountID);
+    END LOOP;
+
+    COMMIT;
+END ProcessMonthlyInterest;
+
+Scenario 2:
+Ans:
+CREATE OR REPLACE PROCEDURE UpdateEmployeeBonus (
+    p_Department VARCHAR2,
+    p_BonusPercentage NUMBER
+) AS
+BEGIN
+    FOR employee_record IN (
+        SELECT EmployeeID, Salary
+        FROM Employees
+        WHERE Department = p_Department
+    ) LOOP
+        UPDATE Employees
+        SET Salary = Salary + (Salary * p_BonusPercentage / 100)
+        WHERE EmployeeID = employee_record.EmployeeID;
+
+        DBMS_OUTPUT.PUT_LINE('Bonus applied to Employee ID: ' || employee_record.EmployeeID);
+    END LOOP;
+
+    COMMIT;
+END UpdateEmployeeBonus;
+
+Scenario 3: 
+Ans:
+CREATE OR REPLACE PROCEDURE TransferFunds (
+    p_FromAccountID NUMBER,
+    p_ToAccountID NUMBER,
+    p_Amount NUMBER
+) AS
+    v_FromBalance NUMBER;
+BEGIN
+    SELECT Balance INTO v_FromBalance
+    FROM Accounts
+    WHERE AccountID = p_FromAccountID;
+
+    IF v_FromBalance < p_Amount THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Insufficient funds in the source account.');
+    END IF;
+
+    UPDATE Accounts
+    SET Balance = Balance - p_Amount
+    WHERE AccountID = p_FromAccountID;
+
+    UPDATE Accounts
+    SET Balance = Balance + p_Amount
+    WHERE AccountID = p_ToAccountID;
+
+    COMMIT;
+
+    DBMS_OUTPUT.PUT_LINE('Funds transferred from Account ID: ' || p_FromAccountID || ' to Account ID: ' || p_ToAccountID);
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+        DBMS_OUTPUT.PUT_LINE('Error during fund transfer: ' || SQLERRM);
+END TransferFunds;
+
+
+Exercise 4: Functions
+
+Scenario 1:
+Ans:
+CREATE OR REPLACE FUNCTION CalculateAge (
+    p_CustomerID NUMBER
+) RETURN NUMBER AS
+    v_DOB DATE;
+    v_Age NUMBER;
+BEGIN
+    SELECT DOB INTO v_DOB
+    FROM Customers
+    WHERE CustomerID = p_CustomerID;
+
+    v_Age := TRUNC(MONTHS_BETWEEN(SYSDATE, v_DOB) / 12);
+    RETURN v_Age;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error calculating age: ' || SQLERRM);
+        RETURN NULL;
+END CalculateAge;
+
+Scenario 2: 
+Ans:
+CREATE OR REPLACE FUNCTION CalculateMonthlyInstallment (
+    p_LoanID NUMBER
+) RETURN NUMBER AS
+    v_LoanAmount NUMBER;
+    v_InterestRate NUMBER;
+    v_LoanDurationYears NUMBER;
+    v_MonthlyRate NUMBER;
+    v_NumberOfPayments NUMBER;
+    v_MonthlyInstallment NUMBER;
+BEGIN
+    SELECT LoanAmount, InterestRate, (MONTHS_BETWEEN(EndDate, StartDate) / 12) INTO v_LoanAmount, v_InterestRate, v_LoanDurationYears
+    FROM Loans
+    WHERE LoanID = p_LoanID;
+
+    v_MonthlyRate := v_InterestRate / 12 / 100;
+    v_NumberOfPayments := v_LoanDurationYears * 12;
+
+    IF v_MonthlyRate = 0 THEN
+        v_MonthlyInstallment := v_LoanAmount / v_NumberOfPayments;
+    ELSE
+        v_MonthlyInstallment := v_LoanAmount * v_MonthlyRate / (1 - POWER(1 + v_MonthlyRate, -v_NumberOfPayments));
+    END IF;
+
+    RETURN v_MonthlyInstallment;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error calculating monthly installment: ' || SQLERRM);
+        RETURN NULL;
+END CalculateMonthlyInstallment;
+
+Scenario 3: 
+Ans:
+CREATE OR REPLACE FUNCTION HasSufficientBalance (
+    p_AccountID NUMBER,
+    p_Amount NUMBER
+) RETURN BOOLEAN AS
+    v_Balance NUMBER;
+BEGIN
+    SELECT Balance INTO v_Balance
+    FROM Accounts
+    WHERE AccountID = p_AccountID;
+
+    RETURN v_Balance >= p_Amount;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN FALSE;
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Error checking balance: ' || SQLERRM);
+        RETURN FALSE;
+END HasSufficientBalance;
+
+
+Exercise 5: Triggers
+
+Scenario 1:
+Ans:
+CREATE OR REPLACE TRIGGER UpdateCustomerLastModified
+BEFORE UPDATE ON Customers
+FOR EACH ROW
+BEGIN
+    :NEW.LastModified := SYSDATE;
+END UpdateCustomerLastModified;
+
+Scenario 2:
+Ans:
+CREATE OR REPLACE TRIGGER LogTransaction
+AFTER INSERT ON Transactions
+FOR EACH ROW
+BEGIN
+    INSERT INTO AuditLog (AuditID, TransactionID, Action, ActionDate)
+    VALUES (AuditLog_SEQ.NEXTVAL, :NEW.TransactionID, 'INSERT', SYSDATE);
+END LogTransaction;
+
+Scenario 3:
+Ans:
+CREATE OR REPLACE TRIGGER CheckTransactionRules
+BEFORE INSERT ON Transactions
+FOR EACH ROW
+BEGIN
+    IF :NEW.TransactionType = 'Withdrawal' THEN
+        DECLARE
+            v_Balance NUMBER;
+        BEGIN
+            SELECT Balance INTO v_Balance
+            FROM Accounts
+            WHERE AccountID = :NEW.AccountID;
+
+            IF v_Balance < :NEW.Amount THEN
+                RAISE_APPLICATION_ERROR(-20001, 'Insufficient balance for withdrawal.');
+            END IF;
+        END;
+    ELSIF :NEW.TransactionType = 'Deposit' THEN
+        IF :NEW.Amount <= 0 THEN
+            RAISE_APPLICATION_ERROR(-20002, 'Deposit amount must be positive.');
+        END IF;
+    END IF;
+END CheckTransactionRules;
+
+
+Exercise 6: Cursors
+
+Scenario 1:
+Ans:
+DECLARE
+    CURSOR c_Transactions IS
+        SELECT DISTINCT t.AccountID
+        FROM Transactions t
+        WHERE EXTRACT(MONTH FROM t.TransactionDate) = EXTRACT(MONTH FROM SYSDATE)
+          AND EXTRACT(YEAR FROM t.TransactionDate) = EXTRACT(YEAR FROM SYSDATE);
+
+    v_AccountID Accounts.AccountID%TYPE;
+BEGIN
+    OPEN c_Transactions;
+    LOOP
+        FETCH c_Transactions INTO v_AccountID;
+        EXIT WHEN c_Transactions%NOTFOUND;
+
+        DBMS_OUTPUT.PUT_LINE('Generating statement for Account ID: ' || v_AccountID);
+
+    END LOOP;
+    CLOSE c_Transactions;
+END;
+
+Scenario 2:
+Ans:
+DECLARE
+    CURSOR c_Accounts IS
+        SELECT AccountID, Balance
+        FROM Accounts;
+
+    v_AccountID Accounts.AccountID%TYPE;
+    v_Balance Accounts.Balance%TYPE;
+BEGIN
+    OPEN c_Accounts;
+    LOOP
+        FETCH c_Accounts INTO v_AccountID, v_Balance;
+        EXIT WHEN c_Accounts%NOTFOUND;
+
+        UPDATE Accounts
+        SET Balance = Balance - 50
+        WHERE AccountID = v_AccountID;
+
+        DBMS_OUTPUT.PUT_LINE('Annual fee applied to Account ID: ' || v_AccountID);
+
+    END LOOP;
+    CLOSE c_Accounts;
+
+    COMMIT;
+END;
+
+Scenario 3: 
+Ans:
+DECLARE
+    CURSOR c_Loans IS
+        SELECT LoanID, InterestRate
+        FROM Loans;
+
+    v_LoanID Loans.LoanID%TYPE;
+    v_OldInterestRate Loans.InterestRate%TYPE;
+BEGIN
+    OPEN c_Loans;
+    LOOP
+        FETCH c_Loans INTO v_LoanID, v_OldInterestRate;
+        EXIT WHEN c_Loans%NOTFOUND;
+
+        UPDATE Loans
+        SET InterestRate = InterestRate + 0.5
+        WHERE LoanID = v_LoanID;
+
+        DBMS_OUTPUT.PUT_LINE('Interest rate updated for Loan ID: ' || v_LoanID);
+
+    END LOOP;
+    CLOSE c_Loans;
+
+    COMMIT;
+END;
+
+
+Exercise 7: Packages
+
+Scenario 1: 
+Ans:
+CREATE OR REPLACE PACKAGE CustomerManagement AS
+    PROCEDURE AddNewCustomer (
+        p_CustomerID NUMBER,
+        p_Name VARCHAR2,
+        p_DOB DATE,
+        p_Balance NUMBER
+    );
+
+    PROCEDURE UpdateCustomerDetails (
+        p_CustomerID NUMBER,
+        p_Name VARCHAR2,
+        p_DOB DATE,
+        p_Balance NUMBER
+    );
+
+    FUNCTION GetCustomerBalance (
+        p_CustomerID NUMBER
+    ) RETURN NUMBER;
+END CustomerManagement;
+/
+
+CREATE OR REPLACE PACKAGE BODY CustomerManagement AS
+    PROCEDURE AddNewCustomer (
+        p_CustomerID NUMBER,
+        p_Name VARCHAR2,
+        p_DOB DATE,
+        p_Balance NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO Customers (CustomerID, Name, DOB, Balance, LastModified)
+        VALUES (p_CustomerID, p_Name, p_DOB, p_Balance, SYSDATE);
+
+        COMMIT;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+            DBMS_OUTPUT.PUT_LINE('Customer with ID ' || p_CustomerID || ' already exists.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error adding new customer: ' || SQLERRM);
+    END AddNewCustomer;
+
+    PROCEDURE UpdateCustomerDetails (
+        p_CustomerID NUMBER,
+        p_Name VARCHAR2,
+        p_DOB DATE,
+        p_Balance NUMBER
+    ) IS
+    BEGIN
+        UPDATE Customers
+        SET Name = p_Name,
+            DOB = p_DOB,
+            Balance = p_Balance,
+            LastModified = SYSDATE
+        WHERE CustomerID = p_CustomerID;
+
+        COMMIT;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            DBMS_OUTPUT.PUT_LINE('Customer with ID ' || p_CustomerID || ' does not exist.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error updating customer details: ' || SQLERRM);
+    END UpdateCustomerDetails;
+
+    FUNCTION GetCustomerBalance (
+        p_CustomerID NUMBER
+    ) RETURN NUMBER IS
+        v_Balance NUMBER;
+    BEGIN
+        SELECT Balance INTO v_Balance
+        FROM Customers
+        WHERE CustomerID = p_CustomerID;
+
+        RETURN v_Balance;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN NULL;
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error retrieving customer balance: ' || SQLERRM);
+            RETURN NULL;
+    END GetCustomerBalance;
+END CustomerManagement;
+/
+
+Scenario 2:
+Ans:
+CREATE OR REPLACE PACKAGE EmployeeManagement AS
+    PROCEDURE HireNewEmployee (
+        p_EmployeeID NUMBER,
+        p_Name VARCHAR2,
+        p_Position VARCHAR2,
+        p_Salary NUMBER,
+        p_Department VARCHAR2,
+        p_HireDate DATE
+    );
+
+    PROCEDURE UpdateEmployeeDetails (
+        p_EmployeeID NUMBER,
+        p_Name VARCHAR2,
+        p_Position VARCHAR2,
+        p_Salary NUMBER,
+        p_Department VARCHAR2
+    );
+
+    FUNCTION CalculateAnnualSalary (
+        p_EmployeeID NUMBER
+    ) RETURN NUMBER;
+END EmployeeManagement;
+/
+
+CREATE OR REPLACE PACKAGE BODY EmployeeManagement AS
+    PROCEDURE HireNewEmployee (
+        p_EmployeeID NUMBER,
+        p_Name VARCHAR2,
+        p_Position VARCHAR2,
+        p_Salary NUMBER,
+        p_Department VARCHAR2,
+        p_HireDate DATE
+    ) IS
+    BEGIN
+        INSERT INTO Employees (EmployeeID, Name, Position, Salary, Department, HireDate)
+        VALUES (p_EmployeeID, p_Name, p_Position, p_Salary, p_Department, p_HireDate);
+
+        COMMIT;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+            DBMS_OUTPUT.PUT_LINE('Employee with ID ' || p_EmployeeID || ' already exists.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error hiring new employee: ' || SQLERRM);
+    END HireNewEmployee;
+
+    PROCEDURE UpdateEmployeeDetails (
+        p_EmployeeID NUMBER,
+        p_Name VARCHAR2,
+        p_Position VARCHAR2,
+        p_Salary NUMBER,
+        p_Department VARCHAR2
+    ) IS
+    BEGIN
+        UPDATE Employees
+        SET Name = p_Name,
+            Position = p_Position,
+            Salary = p_Salary,
+            Department = p_Department
+        WHERE EmployeeID = p_EmployeeID;
+
+        COMMIT;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            DBMS_OUTPUT.PUT_LINE('Employee with ID ' || p_EmployeeID || ' does not exist.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error updating employee details: ' || SQLERRM);
+    END UpdateEmployeeDetails;
+
+    FUNCTION CalculateAnnualSalary (
+        p_EmployeeID NUMBER
+    ) RETURN NUMBER IS
+        v_Salary NUMBER;
+    BEGIN
+        SELECT Salary INTO v_Salary
+        FROM Employees
+        WHERE EmployeeID = p_EmployeeID;
+
+        RETURN v_Salary * 12;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN NULL;
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error calculating annual salary: ' || SQLERRM);
+            RETURN NULL;
+    END CalculateAnnualSalary;
+END EmployeeManagement;
+/
+
+Scenario 3:
+Ans:
+CREATE OR REPLACE PACKAGE AccountOperations AS
+    PROCEDURE OpenNewAccount (
+        p_AccountID NUMBER,
+        p_CustomerID NUMBER,
+        p_AccountType VARCHAR2,
+        p_Balance NUMBER
+    );
+
+    PROCEDURE CloseAccount (
+        p_AccountID NUMBER
+    );
+
+    FUNCTION GetTotalBalance (
+        p_CustomerID NUMBER
+    ) RETURN NUMBER;
+END AccountOperations;
+/
+
+CREATE OR REPLACE PACKAGE BODY AccountOperations AS
+    PROCEDURE OpenNewAccount (
+        p_AccountID NUMBER,
+        p_CustomerID NUMBER,
+        p_AccountType VARCHAR2,
+        p_Balance NUMBER
+    ) IS
+    BEGIN
+        INSERT INTO Accounts (AccountID, CustomerID, AccountType, Balance, LastModified)
+        VALUES (p_AccountID, p_CustomerID, p_AccountType, p_Balance, SYSDATE);
+
+        COMMIT;
+    EXCEPTION
+        WHEN DUP_VAL_ON_INDEX THEN
+            DBMS_OUTPUT.PUT_LINE('Account with ID ' || p_AccountID || ' already exists.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error opening new account: ' || SQLERRM);
+    END OpenNewAccount;
+
+    PROCEDURE CloseAccount (
+        p_AccountID NUMBER
+    ) IS
+    BEGIN
+        DELETE FROM Accounts
+        WHERE AccountID = p_AccountID;
+
+        COMMIT;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            DBMS_OUTPUT.PUT_LINE('Account with ID ' || p_AccountID || ' does not exist.');
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error closing account: ' || SQLERRM);
+    END CloseAccount;
+
+    FUNCTION GetTotalBalance (
+        p_CustomerID NUMBER
+    ) RETURN NUMBER IS
+        v_TotalBalance NUMBER;
+    BEGIN
+        SELECT SUM(Balance) INTO v_TotalBalance
+        FROM Accounts
+        WHERE CustomerID = p_CustomerID;
+
+        RETURN v_TotalBalance;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN 0;
+        WHEN OTHERS THEN
+            DBMS_OUTPUT.PUT_LINE('Error calculating total balance: ' || SQLERRM);
+            RETURN 0;
+    END GetTotalBalance;
+END AccountOperations;
+/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
